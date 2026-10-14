@@ -19,7 +19,10 @@ import {
   Subject,
   TimetableEntry,
   UserProfile,
-  UserRole
+  UserRole,
+  RoomBooking,
+  BookingStatus,
+  NotificationItem
 } from '../types';
 
 // Collections paths
@@ -31,6 +34,9 @@ export const ROOMS_COL = 'rooms';
 export const TIMETABLE_COL = 'timetableEntries';
 export const AVAILABILITY_COL = 'facultyAvailability';
 export const ADMINS_COL = 'admins';
+export const ROOM_BOOKINGS_COL = 'roomBookings';
+export const NOTIFICATIONS_COL = 'notifications';
+
 
 /**
  * Recursively removes all undefined values from an object or array to prevent Firestore setDoc errors.
@@ -829,3 +835,141 @@ export async function initializeDemoData(): Promise<{
     handleFirestoreError(error, OperationType.WRITE, 'initializeDemoData');
   }
 }
+
+/* =========================================================================
+   VENUE / ROOM BOOKINGS SERVICES
+   ========================================================================= */
+
+export async function getRoomBookings(): Promise<RoomBooking[]> {
+  try {
+    const snap = await getDocs(collection(db, ROOM_BOOKINGS_COL));
+    return snap.docs
+      .map((d) => ({ ...d.data(), id: d.id } as RoomBooking))
+      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, ROOM_BOOKINGS_COL);
+  }
+}
+
+export async function saveRoomBooking(booking: RoomBooking): Promise<void> {
+  const path = `${ROOM_BOOKINGS_COL}/${booking.id}`;
+  try {
+    const cleanBooking = sanitizeForFirestore({
+      ...booking,
+      createdAt: booking.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+    await setDoc(doc(db, ROOM_BOOKINGS_COL, booking.id), cleanBooking);
+
+    // Also dispatch notification to administrators
+    const notifId = `notif_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const adminNotif: NotificationItem = {
+      id: notifId,
+      recipientRole: 'admin',
+      title: 'New Venue Booking Request',
+      message: `Student ${booking.studentName} requested room "${booking.roomName}" for event "${booking.eventTitle}" on ${booking.date} (${booking.startTime} - ${booking.endTime}).`,
+      type: 'booking_request',
+      relatedBookingId: booking.id,
+      isRead: false,
+      createdAt: new Date().toISOString()
+    };
+    await setDoc(doc(db, NOTIFICATIONS_COL, notifId), sanitizeForFirestore(adminNotif)).catch((err) => {
+      console.warn('Failed to dispatch admin notification:', err);
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function updateRoomBookingStatus(
+  bookingId: string,
+  status: BookingStatus,
+  adminRemarks?: string,
+  reviewedBy?: string,
+  bookingDetails?: Partial<RoomBooking>
+): Promise<void> {
+  const path = `${ROOM_BOOKINGS_COL}/${bookingId}`;
+  try {
+    const updates = sanitizeForFirestore({
+      status,
+      adminRemarks: adminRemarks || '',
+      reviewedBy: reviewedBy || 'Administrator',
+      reviewedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+    await updateDoc(doc(db, ROOM_BOOKINGS_COL, bookingId), updates);
+
+    // If student info is known, dispatch notification to student
+    if (bookingDetails?.studentId || bookingDetails?.studentEmail) {
+      const notifId = `notif_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const isApproved = status === 'approved';
+      const studentNotif: NotificationItem = {
+        id: notifId,
+        recipientRole: 'student',
+        recipientUserId: bookingDetails.studentId,
+        title: isApproved ? 'Room Booking Allotted!' : 'Room Booking Request Rejected',
+        message: isApproved
+          ? `Your venue booking request for "${bookingDetails.eventTitle || 'Event'}" in "${bookingDetails.roomName || 'Venue'}" on ${bookingDetails.date || ''} (${bookingDetails.startTime || ''} - ${bookingDetails.endTime || ''}) has been ALLOTTED by admin.${adminRemarks ? ` Note: ${adminRemarks}` : ''}`
+          : `Your venue booking request for "${bookingDetails.eventTitle || 'Event'}" in "${bookingDetails.roomName || 'Venue'}" was REJECTED by admin.${adminRemarks ? ` Reason: ${adminRemarks}` : ''}`,
+        type: isApproved ? 'booking_approved' : 'booking_rejected',
+        relatedBookingId: bookingId,
+        isRead: false,
+        createdAt: new Date().toISOString()
+      };
+      await setDoc(doc(db, NOTIFICATIONS_COL, notifId), sanitizeForFirestore(studentNotif)).catch((err) => {
+        console.warn('Failed to dispatch student notification:', err);
+      });
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+}
+
+export async function deleteRoomBooking(id: string): Promise<void> {
+  const path = `${ROOM_BOOKINGS_COL}/${id}`;
+  try {
+    await deleteDoc(doc(db, ROOM_BOOKINGS_COL, id));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+/* =========================================================================
+   NOTIFICATIONS SERVICES
+   ========================================================================= */
+
+export async function getNotifications(role?: string, userId?: string): Promise<NotificationItem[]> {
+  try {
+    const snap = await getDocs(collection(db, NOTIFICATIONS_COL));
+    const allNotifs = snap.docs
+      .map((d) => ({ ...d.data(), id: d.id } as NotificationItem))
+      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+    if (!role && !userId) return allNotifs;
+
+    return allNotifs.filter((n) => {
+      if (role === 'admin') {
+        return n.recipientRole === 'admin' || !n.recipientRole;
+      }
+      if (userId && n.recipientUserId) {
+        return n.recipientUserId === userId;
+      }
+      if (role === 'student') {
+        return n.recipientRole === 'student' && (!n.recipientUserId || n.recipientUserId === userId);
+      }
+      return true;
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, NOTIFICATIONS_COL);
+  }
+}
+
+export async function markNotificationAsRead(id: string): Promise<void> {
+  const path = `${NOTIFICATIONS_COL}/${id}`;
+  try {
+    await updateDoc(doc(db, NOTIFICATIONS_COL, id), { isRead: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+}
+

@@ -218,9 +218,9 @@ function DashboardRouter() {
           <TeacherDashboard
             entries={entries}
             facultyList={faculty}
-            currentFacultyId={teacherFacultyId}
+            currentFacultyId={userProfile?.facultyId || teacherFacultyId}
             availabilityList={availabilities}
-            onSelectFaculty={(id) => {
+            onSelectFaculty={userProfile?.facultyId ? undefined : (id) => {
               setTeacherFacultyId(id);
               loadData(true);
             }}
@@ -231,14 +231,16 @@ function DashboardRouter() {
             entries={entries}
             batches={batches}
             faculty={faculty}
-            currentBatchId={studentBatchId}
-            onSelectBatch={(id) => {
+            rooms={rooms}
+            currentBatchId={userProfile?.batchId || studentBatchId}
+            onSelectBatch={userProfile?.batchId ? undefined : (id) => {
               setStudentBatchId(id);
               loadData(true);
             }}
             onRefresh={() => loadData(true)}
           />
         )}
+
       </main>
 
       {/* Floating CampusSolve AI Trigger Button */}

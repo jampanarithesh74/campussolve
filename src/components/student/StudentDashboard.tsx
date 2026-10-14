@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { Batch, Faculty, TimetableEntry, DayOfWeek, DAYS_OF_WEEK } from '../../types';
+import { Batch, Faculty, Room, TimetableEntry, DayOfWeek, DAYS_OF_WEEK } from '../../types';
 import { TimetableGrid } from '../common/TimetableGrid';
+import { VenueBookingSection } from './VenueBookingSection';
 import {
   Calendar,
   Clock,
@@ -12,7 +13,9 @@ import {
   Info,
   CalendarDays,
   Printer,
-  Download
+  Download,
+  Building,
+  CalendarCheck
 } from 'lucide-react';
 import { PrintExportModal } from '../common/PrintExportModal';
 
@@ -20,6 +23,7 @@ interface StudentDashboardProps {
   entries: TimetableEntry[];
   batches: Batch[];
   faculty: Faculty[];
+  rooms: Room[];
   currentBatchId: string;
   onSelectBatch?: (batchId: string) => void;
   onRefresh?: () => void;
@@ -29,9 +33,12 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   entries,
   batches,
   faculty,
+  rooms,
   currentBatchId,
-  onSelectBatch
+  onSelectBatch,
+  onRefresh
 }) => {
+  const [mainTab, setMainTab] = useState<'schedule' | 'venue-booking'>('schedule');
   const [selectedDay, setSelectedDay] = useState<DayOfWeek | 'ALL'>('ALL');
   const [sessionFilter, setSessionFilter] = useState<'ALL' | 'lecture' | 'lab'>('ALL');
   const [viewMode, setViewMode] = useState<'grid' | 'agenda'>('grid');
@@ -88,7 +95,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
               {activeBatch ? activeBatch.name : 'Computer Science - Year 3 (Batch A)'}
             </h1>
             <p className="text-sm text-slate-500 mt-1">
-              Personalized weekly course schedule, lecture classrooms, and faculty contacts.
+              Personalized weekly course schedule, lecture classrooms, faculty contacts, and venue booking.
             </p>
           </div>
 
@@ -123,8 +130,46 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
         </div>
       </div>
 
-      {/* Today's Schedule & Upcoming Highlight */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Main Tab Switcher: Schedule vs Book a Venue */}
+      <div className="flex items-center gap-2 p-1.5 rounded-xl bg-white border border-slate-200 shadow-xs">
+        <button
+          onClick={() => setMainTab('schedule')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            mainTab === 'schedule'
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          <CalendarDays className="w-4 h-4 text-emerald-400" />
+          <span>My Class Timetable</span>
+        </button>
+
+        <button
+          onClick={() => setMainTab('venue-booking')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            mainTab === 'venue-booking'
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          <Building className="w-4 h-4 text-blue-500" />
+          <span>Book a Venue / Campus Lab</span>
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-700">
+            Event Booking
+          </span>
+        </button>
+      </div>
+
+      {mainTab === 'venue-booking' ? (
+        <VenueBookingSection
+          rooms={rooms}
+          entries={entries}
+          onRefreshTimetable={onRefresh}
+        />
+      ) : (
+        <>
+          {/* Today's Schedule & Upcoming Highlight */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Upcoming class hero card */}
         <div className="md:col-span-2 p-5 rounded-xl bg-white border border-slate-200 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between mb-3">
@@ -386,6 +431,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
             );
           })}
         </div>
+      )}
+        </>
       )}
 
       {/* Print & Export Modal */}

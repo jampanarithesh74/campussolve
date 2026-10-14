@@ -42,7 +42,15 @@ async function seedUsers() {
     }
   }
 
+  // Also ensure user email jampanarithesh74@gmail.com is pre-authorized in admins/
+  const userAdminRef = doc(db, 'admins', 'jampanarithesh74_admin');
+  batch.set(userAdminRef, {
+    email: 'jampanarithesh74@gmail.com',
+    grantedAt: new Date().toISOString()
+  }, { merge: true });
+
   await batch.commit();
+
   console.log(`Successfully seeded ${DEMO_ACCOUNTS.length} demo user profiles into Firestore.`);
   process.exit(0);
 }

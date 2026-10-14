@@ -221,6 +221,11 @@ export const DEMO_FICTIONAL_ROOMS: (Room & { equipment: string })[] = [
     building: 'North Science Block',
     capacity: 75,
     isLab: false,
+    hasProjector: true,
+    hasMicSet: true,
+    hasExtensionBoxes: true,
+    hasComputers: false,
+    description: 'Tiered acoustic seating with dual presentation screens and podium mic',
     equipment: 'Dual 4K Projectors, Interactive Smart Podium, Tiered Acoustic Seating',
     createdAt: new Date().toISOString()
   },
@@ -230,6 +235,11 @@ export const DEMO_FICTIONAL_ROOMS: (Room & { equipment: string })[] = [
     building: 'North Science Block',
     capacity: 70,
     isLab: false,
+    hasProjector: true,
+    hasMicSet: false,
+    hasExtensionBoxes: true,
+    hasComputers: false,
+    description: 'Equipped with 85" display and power strips along student rows',
     equipment: '85" Touch Interactive Display, Document Visualizer, Lecture Capture Array',
     createdAt: new Date().toISOString()
   },
@@ -239,6 +249,11 @@ export const DEMO_FICTIONAL_ROOMS: (Room & { equipment: string })[] = [
     building: 'Central Academic Block',
     capacity: 80,
     isLab: false,
+    hasProjector: true,
+    hasMicSet: true,
+    hasExtensionBoxes: true,
+    hasComputers: false,
+    description: 'Main auditorium with wireless microphone sets, projector, and power distribution',
     equipment: 'Surround Mic Matrix, Dual Digital Chalkboards, Assistive Audio Induction Loop',
     createdAt: new Date().toISOString()
   },
@@ -248,6 +263,11 @@ export const DEMO_FICTIONAL_ROOMS: (Room & { equipment: string })[] = [
     building: 'Central Academic Block',
     capacity: 65,
     isLab: false,
+    hasProjector: true,
+    hasMicSet: true,
+    hasExtensionBoxes: false,
+    hasComputers: false,
+    description: 'Conference room layout with audio system and digital overhead projection',
     equipment: 'Modular Collaborative Desks, Multi-Screen Projection, Conference Audio',
     createdAt: new Date().toISOString()
   },
@@ -257,6 +277,11 @@ export const DEMO_FICTIONAL_ROOMS: (Room & { equipment: string })[] = [
     building: 'Innovation Research Wing B',
     capacity: 65,
     isLab: true,
+    hasProjector: true,
+    hasMicSet: false,
+    hasExtensionBoxes: true,
+    hasComputers: true,
+    description: '65 Linux workstations, high-speed Gigabit LAN, and multi-plug extension boxes',
     equipment: '65 Linux Workstations, Gigabit Managed Switches, FPGA Hardware Kits, Logic Analyzers',
     createdAt: new Date().toISOString()
   },
@@ -266,10 +291,16 @@ export const DEMO_FICTIONAL_ROOMS: (Room & { equipment: string })[] = [
     building: 'Innovation Research Wing B',
     capacity: 65,
     isLab: true,
+    hasProjector: true,
+    hasMicSet: true,
+    hasExtensionBoxes: true,
+    hasComputers: true,
+    description: 'GPU workstations, collaborative lab benches, audio set, and extension boxes',
     equipment: '65 GPU-Accelerated Workstations, Embedded Development Boards, Edge TPU Modules',
     createdAt: new Date().toISOString()
   }
 ];
+
 
 /**
  * ============================================================================

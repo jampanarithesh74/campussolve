@@ -75,7 +75,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const demoMatch = findDemoAccount(emailLower);
           const isAdminEmail =
             emailLower === 'admin@campussolve.demo' ||
-            emailLower === 'agastya752@gmail.com';
+            emailLower === 'agastya752@gmail.com' ||
+            emailLower === 'jampanarithesh74@gmail.com' ||
+            demoMatch?.role === 'admin';
+
 
           if (!profile) {
             // New user registration or first sign-in without existing doc
@@ -146,7 +149,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const demoMatch = findDemoAccount(cleanEmail);
         const isAdmin =
           cleanEmail === 'admin@campussolve.demo' ||
-          cleanEmail === 'agastya752@gmail.com';
+          cleanEmail === 'agastya752@gmail.com' ||
+          cleanEmail === 'jampanarithesh74@gmail.com' ||
+          demoMatch?.role === 'admin';
+
 
         const assignedRole: UserRole = demoMatch
           ? (demoMatch.role.toUpperCase() as UserRole)
@@ -246,7 +252,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const isAdminEmail =
         cleanEmail === 'admin@campussolve.demo' ||
-        cleanEmail === 'agastya752@gmail.com';
+        cleanEmail === 'agastya752@gmail.com' ||
+        cleanEmail === 'jampanarithesh74@gmail.com';
+
       const assignedRole: UserRole = isAdminEmail
         ? 'ADMIN'
         : requestedRole === 'faculty' || requestedRole === 'teacher' || requestedRole === 'FACULTY' || requestedRole === 'TEACHER'

@@ -10,7 +10,7 @@ import {
   RefreshCw,
   Sparkles
 } from 'lucide-react';
-import { UserRole } from '../types';
+import { UserRole, normalizeRole } from '../types';
 
 interface NavbarProps {
   onRefreshData?: () => void;
@@ -25,7 +25,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleAIAssistant,
   isAIOpen
 }) => {
-  const { currentUser, userProfile, role, logout, setDemoPersona, demoModeActive, isFirebaseConnected } = useAuth();
+  const { currentUser, userProfile, role, logout, demoModeActive, isFirebaseConnected } = useAuth();
 
   const getRoleBadge = (r: UserRole | null) => {
     switch (r) {
@@ -78,44 +78,26 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Center: When in Demo Mode, show clear persona switcher */}
-        {demoModeActive && (
-          <div className="hidden lg:flex items-center gap-1 bg-amber-50/80 px-2 py-1 rounded-lg border border-amber-200">
-            <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider px-1">
-              Demo Preview:
-            </span>
-            <button
-              onClick={() => setDemoPersona('admin', undefined, undefined, 'CampusSolve Administrator')}
-              className={`px-2 py-0.5 text-xs rounded-md transition-all cursor-pointer ${
-                role === 'admin'
-                  ? 'bg-slate-900 text-white font-semibold shadow-xs'
-                  : 'text-slate-700 hover:text-slate-900 hover:bg-amber-100/60'
-              }`}
-            >
-              Admin
-            </button>
-            <button
-              onClick={() => setDemoPersona('faculty', undefined, 'fac_demo_vance', 'Dr. Evelyn Vance')}
-              className={`px-2 py-0.5 text-xs rounded-md transition-all cursor-pointer ${
-                role === 'faculty' || role === 'teacher'
-                  ? 'bg-blue-600 text-white font-semibold shadow-xs'
-                  : 'text-slate-700 hover:text-slate-900 hover:bg-amber-100/60'
-              }`}
-            >
-              Faculty (Dr. Vance)
-            </button>
-            <button
-              onClick={() => setDemoPersona('student', 'batch_demo_alpha', undefined, 'Student [Batch Alpha]')}
-              className={`px-2 py-0.5 text-xs rounded-md transition-all cursor-pointer ${
-                role === 'student'
-                  ? 'bg-emerald-600 text-white font-semibold shadow-xs'
-                  : 'text-slate-700 hover:text-slate-900 hover:bg-amber-100/60'
-              }`}
-            >
-              Student (Batch Alpha)
-            </button>
-          </div>
-        )}
+        {/* Center: Strict Role-Locked Portal Navigation Banner */}
+        <div className="flex items-center gap-2">
+          {normalizeRole(role) === 'admin' ? (
+            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-slate-900 text-white shadow-xs border border-slate-800">
+              <Shield className="w-4 h-4 text-amber-400 shrink-0" />
+              <span className="text-xs font-bold tracking-wide uppercase">Admin Portal</span>
+            </div>
+          ) : normalizeRole(role) === 'faculty' ? (
+            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-blue-700 text-white shadow-xs border border-blue-800">
+              <UserCheck className="w-4 h-4 text-blue-200 shrink-0" />
+              <span className="text-xs font-bold tracking-wide uppercase">Faculty Portal</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-emerald-700 text-white shadow-xs border border-emerald-800">
+              <GraduationCap className="w-4 h-4 text-emerald-200 shrink-0" />
+              <span className="text-xs font-bold tracking-wide uppercase">Student Portal</span>
+            </div>
+          )}
+        </div>
+
 
         {/* Right Section: AI Assistant, Status, Profile & Sign Out */}
         <div className="flex items-center gap-2">

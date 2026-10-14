@@ -6,7 +6,10 @@ import {
   Room,
   Subject,
   TimetableEntry,
-  ValidationReport
+  ValidationReport,
+  RoomBooking,
+  NotificationItem,
+  BookingStatus
 } from '../../types';
 import { TimetableGrid } from '../common/TimetableGrid';
 import { AutomatedSchedulerModal } from './AutomatedSchedulerModal';
@@ -28,7 +31,12 @@ import {
   deleteRoom,
   saveTimetableEntry,
   deleteTimetableEntry,
-  replaceAllTimetableEntries
+  replaceAllTimetableEntries,
+  getRoomBookings,
+  updateRoomBookingStatus,
+  deleteRoomBooking,
+  getNotifications,
+  markNotificationAsRead
 } from '../../lib/timetableService';
 import {
   Calendar,
@@ -51,8 +59,22 @@ import {
   Check,
   Search,
   Filter,
-  Flame
+  Flame,
+  Tv,
+  Mic,
+  Zap,
+  Monitor,
+  Clock,
+  CheckCheck,
+  XCircle,
+  X,
+  Bell,
+  BellRing,
+  CalendarCheck,
+  MessageSquare
 } from 'lucide-react';
+
+
 
 interface AdminDashboardProps {
   entries: TimetableEntry[];
@@ -74,11 +96,105 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onRefreshData
 }) => {
   // Navigation tabs
-  const [activeTab, setActiveTab] = useState<'grid' | 'batches' | 'faculty' | 'subjects' | 'rooms' | 'conflicts' | 'conflict-map'>('grid');
+  const [activeTab, setActiveTab] = useState<'grid' | 'batches' | 'faculty' | 'subjects' | 'rooms' | 'bookings' | 'conflicts' | 'conflict-map'>('grid');
+
+  // Venue Bookings & Notifications state
+  const [bookings, setBookings] = useState<RoomBooking[]>([]);
+  const [bookingsLoading, setBookingsLoading] = useState(false);
+  const [bookingFilter, setBookingFilter] = useState<'ALL' | 'pending' | 'approved' | 'rejected'>('ALL');
+  const [bookingSearch, setBookingSearch] = useState('');
+  const [rejectingBooking, setRejectingBooking] = useState<RoomBooking | null>(null);
+  const [rejectRemarks, setRejectRemarks] = useState('');
+  const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false);
+
+  // Load bookings and notifications
+  const loadBookingsAndNotifs = async () => {
+    setBookingsLoading(true);
+    try {
+      const [bList, nList] = await Promise.all([
+        getRoomBookings().catch(() => []),
+        getNotifications('admin').catch(() => [])
+      ]);
+      setBookings(bList || []);
+      setNotifications(nList || []);
+    } catch (err) {
+      console.error('Error fetching room bookings:', err);
+    } finally {
+      setBookingsLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    loadBookingsAndNotifs();
+  }, []);
+
+  const pendingBookingsCount = useMemo(() => {
+    return bookings.filter((b) => b.status === 'pending').length;
+  }, [bookings]);
+
+  const unreadNotifsCount = useMemo(() => {
+    return notifications.filter((n) => !n.isRead).length;
+  }, [notifications]);
+
+  // Handle Approve (Allot Room)
+  const handleApproveBooking = async (b: RoomBooking) => {
+    setActionInProgress(b.id);
+    try {
+      await updateRoomBookingStatus(b.id, 'approved', 'Allotted by Academic Administration', 'Administrator', b);
+      await loadBookingsAndNotifs();
+      onRefreshData();
+    } catch (err) {
+      console.error('Failed to approve room booking:', err);
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  // Handle Reject
+  const handleConfirmReject = async () => {
+    if (!rejectingBooking) return;
+    setActionInProgress(rejectingBooking.id);
+    try {
+      await updateRoomBookingStatus(
+        rejectingBooking.id,
+        'rejected',
+        rejectRemarks.trim() || 'Facility unavailable during requested slot',
+        'Administrator',
+        rejectingBooking
+      );
+      setRejectingBooking(null);
+      setRejectRemarks('');
+      await loadBookingsAndNotifs();
+      onRefreshData();
+    } catch (err) {
+      console.error('Failed to reject room booking:', err);
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  const filteredBookings = useMemo(() => {
+    return bookings.filter((b) => {
+      const matchFilter =
+        bookingFilter === 'ALL' ? true : b.status === bookingFilter;
+      const q = bookingSearch.trim().toLowerCase();
+      const matchSearch =
+        !q ||
+        (b.eventTitle || '').toLowerCase().includes(q) ||
+        (b.studentName || '').toLowerCase().includes(q) ||
+        (b.studentEmail || '').toLowerCase().includes(q) ||
+        (b.roomName || '').toLowerCase().includes(q);
+      return matchFilter && matchSearch;
+    });
+  }, [bookings, bookingFilter, bookingSearch]);
 
   // Filter for the Timetable Grid
+
   const [gridFilterType, setGridFilterType] = useState<'batch' | 'faculty' | 'room'>('batch');
   const [selectedFilterId, setSelectedFilterId] = useState<string>('ALL');
+
 
   // Modals state
   const [isSchedulerOpen, setIsSchedulerOpen] = useState(false);
@@ -404,6 +520,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         >
           Rooms & Labs ({rooms.length})
         </button>
+
+        <button
+          onClick={() => setActiveTab('bookings')}
+          className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+            activeTab === 'bookings'
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          <CalendarCheck className="w-3.5 h-3.5 text-blue-500" />
+          <span>Venue Bookings</span>
+          {pendingBookingsCount > 0 && (
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white leading-none">
+              {pendingBookingsCount}
+            </span>
+          )}
+        </button>
+
 
         <button
           onClick={() => setActiveTab('conflict-map')}
@@ -781,8 +915,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           <div className="divide-y divide-slate-100">
             {rooms.map((r) => (
-              <div key={r.id} className="py-3 flex items-center justify-between gap-4">
-                <div>
+              <div key={r.id} className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <h4 className="text-sm font-semibold text-slate-900">{r.name}</h4>
                     <span
@@ -795,17 +929,52 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       {r.isLab ? 'LABORATORY' : 'LECTURE HALL'}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Building: {r.building} • Seating Capacity: <span className="text-slate-800 font-semibold">{r.capacity} seats</span>
+                  <p className="text-xs text-slate-500">
+                    Building: <span className="text-slate-700 font-medium">{r.building}</span> • Seating Capacity: <span className="text-slate-800 font-semibold">{r.capacity} seats</span>
                   </p>
+
+                  {/* Configured Equipment Badges */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    {r.hasProjector && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
+                        <Tv className="w-3 h-3 text-indigo-600" />
+                        Projector
+                      </span>
+                    )}
+                    {r.hasMicSet && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <Mic className="w-3 h-3 text-emerald-600" />
+                        Mic Sets
+                      </span>
+                    )}
+                    {r.hasExtensionBoxes && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                        <Zap className="w-3 h-3 text-amber-600" />
+                        Extension Boxes
+                      </span>
+                    )}
+                    {(r.isLab || r.hasComputers) && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                        <Monitor className="w-3 h-3 text-blue-600" />
+                        Workstations Lab
+                      </span>
+                    )}
+                    {r.description && (
+                      <span className="text-[11px] text-slate-400 italic">
+                        • "{r.description}"
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
+
+                <div className="flex items-center gap-2 self-end sm:self-center">
                   <button
                     onClick={() => {
                       setRoomToEdit(r);
                       setIsRoomModalOpen(true);
                     }}
                     className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer shadow-xs"
+                    title="Edit Room & Equipment"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
                   </button>
@@ -817,6 +986,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       }
                     }}
                     className="p-1.5 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 cursor-pointer shadow-xs"
+                    title="Delete Room"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -826,6 +996,266 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         </div>
       )}
+
+      {/* Tab: Venue Bookings Requests */}
+      {activeTab === 'bookings' && (
+        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200">
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold text-slate-900">Student Venue & Lab Booking Requests</h3>
+                {pendingBookingsCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200 animate-pulse">
+                    {pendingBookingsCount} Action Required
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Review, allot, or decline student event reservations for campus facilities and laboratories.
+              </p>
+            </div>
+
+            {/* Filter Buttons */}
+            <div className="flex items-center gap-1.5 self-start sm:self-auto flex-wrap">
+              <button
+                onClick={() => setBookingFilter('ALL')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  bookingFilter === 'ALL'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                All ({bookings.length})
+              </button>
+              <button
+                onClick={() => setBookingFilter('pending')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  bookingFilter === 'pending'
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200'
+                }`}
+              >
+                Pending ({bookings.filter((b) => b.status === 'pending').length})
+              </button>
+              <button
+                onClick={() => setBookingFilter('approved')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  bookingFilter === 'approved'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
+                }`}
+              >
+                Allotted ({bookings.filter((b) => b.status === 'approved').length})
+              </button>
+              <button
+                onClick={() => setBookingFilter('rejected')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  bookingFilter === 'rejected'
+                    ? 'bg-rose-600 text-white shadow-xs'
+                    : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
+                }`}
+              >
+                Rejected ({bookings.filter((b) => b.status === 'rejected').length})
+              </button>
+            </div>
+          </div>
+
+          {/* Search bar */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                value={bookingSearch}
+                onChange={(e) => setBookingSearch(e.target.value)}
+                placeholder="Search by event title, student name, email, or room designation..."
+                className="w-full bg-slate-50 text-xs text-slate-900 pl-9 pr-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-blue-600 focus:bg-white transition-all shadow-xs"
+              />
+            </div>
+            <button
+              onClick={loadBookingsAndNotifs}
+              disabled={bookingsLoading}
+              className="px-3 py-2 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shrink-0"
+            >
+              <RotateCcw className={`w-3.5 h-3.5 ${bookingsLoading ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
+            </button>
+          </div>
+
+          {/* Bookings List */}
+          {bookingsLoading ? (
+            <div className="py-12 flex flex-col items-center justify-center text-slate-400 text-xs">
+              <Clock className="w-6 h-6 animate-spin mb-2 text-blue-600" />
+              <span>Loading venue booking records...</span>
+            </div>
+          ) : filteredBookings.length === 0 ? (
+            <div className="py-12 text-center rounded-xl bg-slate-50 border border-dashed border-slate-200">
+              <CalendarCheck className="w-8 h-8 mx-auto text-slate-400 mb-2" />
+              <p className="text-xs font-semibold text-slate-700">No booking requests found</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                {bookingFilter === 'pending'
+                  ? 'All student requests have been processed.'
+                  : 'Students can request room bookings from their Student Portal.'}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredBookings.map((b) => {
+                const roomInfo = rooms.find((r) => r.id === b.roomId);
+                const isPending = b.status === 'pending';
+                const isApproved = b.status === 'approved';
+
+                return (
+                  <div
+                    key={b.id}
+                    className={`p-4 rounded-xl border transition-all ${
+                      isPending
+                        ? 'bg-amber-50/40 border-amber-300 shadow-xs'
+                        : isApproved
+                        ? 'bg-white border-emerald-300 shadow-xs'
+                        : 'bg-white border-slate-200 opacity-80'
+                    }`}
+                  >
+                    <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                      {/* Left: Event & Student Info */}
+                      <div className="space-y-1.5 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h4 className="text-sm font-bold text-slate-900">{b.eventTitle}</h4>
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                              isPending
+                                ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                                : isApproved
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                : 'bg-rose-100 text-rose-800 border border-rose-300'
+                            }`}
+                          >
+                            {isPending ? 'Pending Approval' : isApproved ? 'Room Allotted' : 'Request Rejected'}
+                          </span>
+                        </div>
+
+                        <p className="text-xs text-slate-600 leading-relaxed">
+                          {b.eventDescription || 'No description provided.'}
+                        </p>
+
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 pt-1">
+                          <span className="flex items-center gap-1 font-medium text-slate-700">
+                            <Users className="w-3.5 h-3.5 text-blue-600" />
+                            Requested by: <span className="font-semibold text-slate-900">{b.studentName}</span> ({b.studentEmail})
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5 text-slate-400" />
+                            Date: <strong className="text-slate-800">{b.date}</strong> ({b.day || 'Day'}) from <strong>{b.startTime} - {b.endTime}</strong>
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Users className="w-3.5 h-3.5 text-slate-400" />
+                            Expected: <strong>{b.expectedAttendees} attendees</strong>
+                          </span>
+                        </div>
+
+                        {/* Room & Equipment info */}
+                        <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 mt-2 space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-semibold text-slate-800 flex items-center gap-1.5">
+                              <MapPin className="w-3.5 h-3.5 text-indigo-600" />
+                              {b.roomName} • {b.building || roomInfo?.building || 'Campus Wing'} (Capacity: {roomInfo?.capacity || 60} seats)
+                            </span>
+                            <span className="text-[11px] text-slate-500">
+                              Facility Equipment:
+                            </span>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                            {roomInfo?.hasProjector && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded bg-white text-indigo-700 border border-indigo-200">
+                                <Tv className="w-3 h-3 text-indigo-600" /> Projector
+                              </span>
+                            )}
+                            {roomInfo?.hasMicSet && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded bg-white text-emerald-700 border border-emerald-200">
+                                <Mic className="w-3 h-3 text-emerald-600" /> Mic Sets
+                              </span>
+                            )}
+                            {roomInfo?.hasExtensionBoxes && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded bg-white text-amber-700 border border-amber-200">
+                                <Zap className="w-3 h-3 text-amber-600" /> Extension Boxes
+                              </span>
+                            )}
+                            {(roomInfo?.isLab || roomInfo?.hasComputers) && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded bg-white text-blue-700 border border-blue-200">
+                                <Monitor className="w-3 h-3 text-blue-600" /> Lab Workstations
+                              </span>
+                            )}
+                            {b.equipmentRequested?.otherNotes && (
+                              <span className="text-[11px] text-slate-600 italic">
+                                Note: "{b.equipmentRequested.otherNotes}"
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Admin Remarks if reviewed */}
+                        {b.adminRemarks && (
+                          <div className="flex items-start gap-1.5 text-xs text-slate-600 bg-slate-100 p-2 rounded-lg mt-2">
+                            <MessageSquare className="w-3.5 h-3.5 text-slate-500 shrink-0 mt-0.5" />
+                            <span>
+                              <strong>Admin Remarks:</strong> {b.adminRemarks} (by {b.reviewedBy || 'Admin'} on {b.reviewedAt ? new Date(b.reviewedAt).toLocaleDateString() : ''})
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Right: Actions */}
+                      <div className="flex lg:flex-col items-center gap-2 shrink-0">
+                        {isPending ? (
+                          <>
+                            <button
+                              onClick={() => handleApproveBooking(b)}
+                              disabled={actionInProgress === b.id}
+                              className="w-full flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                            >
+                              <CheckCheck className="w-4 h-4" />
+                              <span>{actionInProgress === b.id ? 'Allotting...' : 'Allot Room'}</span>
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                setRejectingBooking(b);
+                                setRejectRemarks('');
+                              }}
+                              disabled={actionInProgress === b.id}
+                              className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-white hover:bg-rose-50 text-rose-700 text-xs font-semibold border border-rose-300 shadow-xs transition-all cursor-pointer"
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                              <span>Reject</span>
+                            </button>
+                          </>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={async () => {
+                                if (window.confirm('Delete this booking record?')) {
+                                  await deleteRoomBooking(b.id);
+                                  await loadBookingsAndNotifs();
+                                }
+                              }}
+                              className="p-1.5 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 cursor-pointer shadow-xs"
+                              title="Delete record"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
 
       {/* Tab 6: Conflict Audit Center */}
       {activeTab === 'conflicts' && (
@@ -1017,6 +1447,74 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         roomsList={rooms}
         userRole="admin"
       />
+
+      {/* Reject Booking Remarks Modal */}
+      {rejectingBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-md rounded-2xl bg-white border border-slate-200 shadow-xl overflow-hidden">
+            <div className="p-5 border-b border-slate-200 bg-rose-50/50 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-rose-800">
+                <XCircle className="w-5 h-5 text-rose-600" />
+                <h3 className="text-base font-bold text-slate-900">Decline Venue Request</h3>
+              </div>
+              <button
+                onClick={() => setRejectingBooking(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div>
+                <p className="text-xs text-slate-600 mb-1">
+                  You are declining the booking request for:
+                </p>
+                <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs">
+                  <p className="font-bold text-slate-900">{rejectingBooking.eventTitle}</p>
+                  <p className="text-slate-600">
+                    {rejectingBooking.roomName} • {rejectingBooking.date} ({rejectingBooking.startTime} - {rejectingBooking.endTime})
+                  </p>
+                  <p className="text-slate-500 mt-1">Requested by: {rejectingBooking.studentName}</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Reason / Remarks for Student (Required)
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  value={rejectRemarks}
+                  onChange={(e) => setRejectRemarks(e.target.value)}
+                  placeholder="e.g. Facility is undergoing scheduled maintenance; Please request Gauss Hall instead; Lab required for academic examinations."
+                  className="w-full bg-white text-xs text-slate-900 p-3 rounded-lg border border-slate-300 focus:outline-none focus:border-rose-600 focus:ring-1 focus:ring-rose-600 shadow-xs"
+                />
+              </div>
+
+              <div className="pt-2 border-t border-slate-200 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRejectingBooking(null)}
+                  className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 rounded-lg cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmReject}
+                  disabled={actionInProgress === rejectingBooking.id}
+                  className="px-4 py-1.5 text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white rounded-lg shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {actionInProgress === rejectingBooking.id ? 'Submitting...' : 'Confirm Rejection'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+
   );
 };

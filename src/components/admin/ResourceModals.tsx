@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Faculty, Batch, Subject, Room, getSubjectFacultyIds } from '../../types';
-import { X, Save } from 'lucide-react';
+import { X, Save, Tv, Mic, Zap, Monitor } from 'lucide-react';
+
 
 /* =========================================================================
    FACULTY MODAL
@@ -596,6 +597,10 @@ export const RoomModal: React.FC<RoomModalProps> = ({
   const [building, setBuilding] = useState('Alan Turing Complex');
   const [capacity, setCapacity] = useState(60);
   const [isLab, setIsLab] = useState(false);
+  const [hasProjector, setHasProjector] = useState(true);
+  const [hasMicSet, setHasMicSet] = useState(false);
+  const [hasExtensionBoxes, setHasExtensionBoxes] = useState(false);
+  const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -603,12 +608,20 @@ export const RoomModal: React.FC<RoomModalProps> = ({
       setName(roomToEdit.name);
       setBuilding(roomToEdit.building);
       setCapacity(roomToEdit.capacity);
-      setIsLab(roomToEdit.isLab);
+      setIsLab(Boolean(roomToEdit.isLab));
+      setHasProjector(roomToEdit.hasProjector !== undefined ? roomToEdit.hasProjector : true);
+      setHasMicSet(Boolean(roomToEdit.hasMicSet));
+      setHasExtensionBoxes(Boolean(roomToEdit.hasExtensionBoxes));
+      setDescription(roomToEdit.description || '');
     } else {
       setName('');
       setBuilding('Alan Turing Complex');
       setCapacity(60);
       setIsLab(false);
+      setHasProjector(true);
+      setHasMicSet(false);
+      setHasExtensionBoxes(false);
+      setDescription('');
     }
   }, [roomToEdit, isOpen]);
 
@@ -623,7 +636,12 @@ export const RoomModal: React.FC<RoomModalProps> = ({
         name,
         building,
         capacity: Number(capacity),
-        isLab
+        isLab,
+        hasProjector,
+        hasMicSet,
+        hasExtensionBoxes,
+        hasComputers: isLab,
+        description: description.trim()
       });
       onClose();
     } finally {
@@ -633,11 +651,16 @@ export const RoomModal: React.FC<RoomModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="w-full max-w-md rounded-2xl bg-white border border-slate-200 shadow-xl overflow-hidden">
-        <div className="p-5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-          <h3 className="text-base font-bold text-slate-900">
-            {roomToEdit ? 'Edit Campus Facility' : 'Add Campus Facility'}
-          </h3>
+      <div className="w-full max-w-md rounded-2xl bg-white border border-slate-200 shadow-xl overflow-hidden max-h-[90vh] flex flex-col">
+        <div className="p-5 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
+          <div>
+            <h3 className="text-base font-bold text-slate-900">
+              {roomToEdit ? 'Configure Campus Facility' : 'Add Campus Facility'}
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Set room seating, laboratory apparatus &amp; presentation equipment
+            </p>
+          </div>
           <button
             onClick={onClose}
             aria-label="Close modal"
@@ -646,7 +669,8 @@ export const RoomModal: React.FC<RoomModalProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-5 space-y-3.5">
+
+        <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto">
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">Room Designation *</label>
             <input
@@ -654,45 +678,146 @@ export const RoomModal: React.FC<RoomModalProps> = ({
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Turing Lecture Hall 301"
+              placeholder="e.g. Turing Lecture Hall 301 or Lab 4"
               className="w-full bg-white text-xs text-slate-900 px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 shadow-xs"
             />
           </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Building / Wing</label>
+              <input
+                type="text"
+                value={building}
+                onChange={(e) => setBuilding(e.target.value)}
+                placeholder="Alan Turing Complex"
+                className="w-full bg-white text-xs text-slate-900 px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 shadow-xs"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Seating Capacity *</label>
+              <input
+                type="number"
+                min="1"
+                max="1000"
+                required
+                value={capacity}
+                onChange={(e) => setCapacity(Number(e.target.value))}
+                className="w-full bg-white text-xs text-slate-900 px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 shadow-xs"
+              />
+            </div>
+          </div>
+
+          {/* Equipment & Facilities Configuration */}
+          <div className="space-y-2 pt-1 border-t border-slate-100">
+            <label className="block text-xs font-bold text-slate-900">
+              Facility Equipment &amp; Features:
+            </label>
+            <p className="text-[11px] text-slate-500 mb-2">
+              Select available hardware so students &amp; faculty can identify suitable venues for events and lectures.
+            </p>
+
+            <div className="grid grid-cols-1 gap-2">
+              {/* Computer Lab */}
+              <label className={`flex items-start gap-3 p-2.5 rounded-lg border transition-colors cursor-pointer ${
+                isLab ? 'bg-blue-50/70 border-blue-300 text-blue-900' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+              }`}>
+                <input
+                  type="checkbox"
+                  checked={isLab}
+                  onChange={(e) => setIsLab(e.target.checked)}
+                  className="w-4 h-4 mt-0.5 rounded text-blue-600 border-slate-300 focus:ring-0 cursor-pointer"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-1.5 font-semibold text-xs text-slate-900">
+                    <Monitor className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Equipped Computer Laboratory</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Equipped with computer workstations, development apparatus, and high-speed LAN.
+                  </p>
+                </div>
+              </label>
+
+              {/* Projector */}
+              <label className={`flex items-start gap-3 p-2.5 rounded-lg border transition-colors cursor-pointer ${
+                hasProjector ? 'bg-indigo-50/70 border-indigo-300 text-indigo-900' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+              }`}>
+                <input
+                  type="checkbox"
+                  checked={hasProjector}
+                  onChange={(e) => setHasProjector(e.target.checked)}
+                  className="w-4 h-4 mt-0.5 rounded text-indigo-600 border-slate-300 focus:ring-0 cursor-pointer"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-1.5 font-semibold text-xs text-slate-900">
+                    <Tv className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Digital HD Projector &amp; Projection Screen</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Ceiling-mounted projector with HDMI, USB-C, and wireless screencasting for presentations.
+                  </p>
+                </div>
+              </label>
+
+              {/* Mic Sets */}
+              <label className={`flex items-start gap-3 p-2.5 rounded-lg border transition-colors cursor-pointer ${
+                hasMicSet ? 'bg-emerald-50/70 border-emerald-300 text-emerald-900' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+              }`}>
+                <input
+                  type="checkbox"
+                  checked={hasMicSet}
+                  onChange={(e) => setHasMicSet(e.target.checked)}
+                  className="w-4 h-4 mt-0.5 rounded text-emerald-600 border-slate-300 focus:ring-0 cursor-pointer"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-1.5 font-semibold text-xs text-slate-900">
+                    <Mic className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Sound System &amp; Wireless / Collar Mic Sets</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Audio amplifier, podium microphone, handheld wireless mics, and collar mics for speakers.
+                  </p>
+                </div>
+              </label>
+
+              {/* Extension Boxes */}
+              <label className={`flex items-start gap-3 p-2.5 rounded-lg border transition-colors cursor-pointer ${
+                hasExtensionBoxes ? 'bg-amber-50/70 border-amber-300 text-amber-900' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+              }`}>
+                <input
+                  type="checkbox"
+                  checked={hasExtensionBoxes}
+                  onChange={(e) => setHasExtensionBoxes(e.target.checked)}
+                  className="w-4 h-4 mt-0.5 rounded text-amber-600 border-slate-300 focus:ring-0 cursor-pointer"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-1.5 font-semibold text-xs text-slate-900">
+                    <Zap className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Power Extension Cord &amp; Power Strip Boxes</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Multiple multi-plug surge protector extension boxes available for laptops &amp; apparatus.
+                  </p>
+                </div>
+              </label>
+            </div>
+          </div>
+
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Building / Wing</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Facility Notes / Guidelines (Optional)
+            </label>
             <input
               type="text"
-              value={building}
-              onChange={(e) => setBuilding(e.target.value)}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="e.g. Requires lab technician key for evening bookings; Air conditioned"
               className="w-full bg-white text-xs text-slate-900 px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 shadow-xs"
             />
           </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Seating Capacity *</label>
-            <input
-              type="number"
-              min="1"
-              max="1000"
-              required
-              value={capacity}
-              onChange={(e) => setCapacity(Number(e.target.value))}
-              className="w-full bg-white text-xs text-slate-900 px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 shadow-xs"
-            />
-          </div>
-          <div className="pt-1">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isLab}
-                onChange={(e) => setIsLab(e.target.checked)}
-                className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-0"
-              />
-              <span className="text-xs text-slate-700 font-medium">
-                Equipped as Laboratory (Computers / Apparatus)
-              </span>
-            </label>
-          </div>
-          <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
+
+          <div className="pt-3 border-t border-slate-200 flex justify-end gap-2 shrink-0">
             <button
               type="button"
               onClick={onClose}
@@ -705,7 +830,7 @@ export const RoomModal: React.FC<RoomModalProps> = ({
               disabled={saving}
               className="px-4 py-1.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-lg shadow-xs transition-all cursor-pointer disabled:opacity-50"
             >
-              {saving ? 'Saving...' : 'Save Room'}
+              {saving ? 'Saving...' : 'Save Room Configuration'}
             </button>
           </div>
         </form>
@@ -713,3 +838,4 @@ export const RoomModal: React.FC<RoomModalProps> = ({
     </div>
   );
 };
+
