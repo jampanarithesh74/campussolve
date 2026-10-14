@@ -1,0 +1,162 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Authenticated user profile in SYNCHRONIQ",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Auth UID" },
+        "email": { "type": "string", "description": "User email address" },
+        "displayName": { "type": "string", "description": "Full display name" },
+        "role": { "type": "string", "enum": ["student", "teacher", "faculty", "admin"], "description": "Authorized RBAC role" },
+        "batchId": { "type": "string", "description": "Associated batch ID for students" },
+        "facultyId": { "type": "string", "description": "Associated faculty ID for teachers" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" },
+        "updatedAt": { "type": "string", "description": "Last updated timestamp" }
+      },
+      "required": ["id", "email", "role"]
+    },
+    "Faculty": {
+      "title": "Faculty",
+      "description": "Academic faculty member details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Faculty ID" },
+        "name": { "type": "string", "description": "Faculty name" },
+        "department": { "type": "string", "description": "Academic department" },
+        "email": { "type": "string", "description": "Faculty institutional email" },
+        "designation": { "type": "string", "description": "Professor / Associate Prof / Assistant Prof" },
+        "maxHoursPerWeek": { "type": "number", "description": "Maximum teaching hours per week" },
+        "color": { "type": "string", "description": "Visual color tag for timetable display" },
+        "createdAt": { "type": "string", "description": "Creation ISO timestamp" }
+      },
+      "required": ["id", "name", "department", "email"]
+    },
+    "Batch": {
+      "title": "Batch",
+      "description": "Student cohort/batch definition",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Batch unique identifier" },
+        "name": { "type": "string", "description": "Batch readable name" },
+        "year": { "type": "string", "description": "Academic Year" },
+        "semester": { "type": "string", "description": "Semester number or tag" },
+        "studentCount": { "type": "number", "description": "Total number of students in batch" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" }
+      },
+      "required": ["id", "name", "studentCount"]
+    },
+    "Subject": {
+      "title": "Subject",
+      "description": "Curriculum course / subject details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Subject ID" },
+        "code": { "type": "string", "description": "Course code (e.g. CS301)" },
+        "name": { "type": "string", "description": "Subject name" },
+        "credits": { "type": "number", "description": "Course credits" },
+        "weeklyLectures": { "type": "number", "description": "Weekly sessions required" },
+        "isLab": { "type": "boolean", "description": "Whether this subject requires a laboratory" },
+        "batchId": { "type": "string", "description": "Target batch ID" },
+        "facultyId": { "type": "string", "description": "Default instructor faculty ID" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" }
+      },
+      "required": ["id", "code", "name", "isLab", "batchId"]
+    },
+    "Room": {
+      "title": "Room",
+      "description": "Campus classroom or laboratory",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Room ID" },
+        "name": { "type": "string", "description": "Room designation or number" },
+        "capacity": { "type": "number", "description": "Seating capacity" },
+        "isLab": { "type": "boolean", "description": "Whether the room is equipped as a lab" },
+        "building": { "type": "string", "description": "Building or wing" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" }
+      },
+      "required": ["id", "name", "capacity", "isLab"]
+    },
+    "TimetableEntry": {
+      "title": "TimetableEntry",
+      "description": "Scheduled class/lab slot in the weekly timetable",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Timetable entry ID" },
+        "subjectId": { "type": "string", "description": "Subject ID" },
+        "subjectName": { "type": "string", "description": "Subject title" },
+        "batchId": { "type": "string", "description": "Batch ID" },
+        "batchName": { "type": "string", "description": "Batch title" },
+        "facultyId": { "type": "string", "description": "Faculty ID" },
+        "facultyName": { "type": "string", "description": "Faculty full name" },
+        "roomId": { "type": "string", "description": "Room ID" },
+        "roomName": { "type": "string", "description": "Room title" },
+        "day": { "type": "string", "description": "Day of week" },
+        "startTime": { "type": "string", "description": "Start time in HH:mm" },
+        "endTime": { "type": "string", "description": "End time in HH:mm" },
+        "sessionType": { "type": "string", "enum": ["lecture", "lab", "tutorial"], "description": "Session type" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" },
+        "updatedAt": { "type": "string", "description": "Update timestamp" }
+      },
+      "required": ["id", "subjectId", "batchId", "facultyId", "roomId", "day", "startTime", "endTime", "sessionType"]
+    },
+    "FacultyAvailability": {
+      "title": "FacultyAvailability",
+      "description": "Faculty member availability per day and time slot",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Availability ID" },
+        "facultyId": { "type": "string", "description": "Faculty ID" },
+        "day": { "type": "string", "description": "Day of week" },
+        "availableSlots": { "type": "string", "description": "Serialized available time slots JSON array" },
+        "unavailableSlots": { "type": "string", "description": "Serialized unavailable time slots JSON array" }
+      },
+      "required": ["id", "facultyId", "day"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "Authorized administrator pointer",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Admin UID" },
+        "email": { "type": "string", "description": "Admin email" },
+        "grantedAt": { "type": "string", "description": "When access was granted" }
+      },
+      "required": ["uid", "email"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles with role, batchId, or facultyId mapping"
+    },
+    "/faculty/{facultyId}": {
+      "schema": "Faculty",
+      "description": "Faculty profiles and teaching capacities"
+    },
+    "/batches/{batchId}": {
+      "schema": "Batch",
+      "description": "Student batches and cohorts"
+    },
+    "/subjects/{subjectId}": {
+      "schema": "Subject",
+      "description": "Curriculum course subjects"
+    },
+    "/rooms/{roomId}": {
+      "schema": "Room",
+      "description": "Classrooms and laboratories"
+    },
+    "/timetableEntries/{entryId}": {
+      "schema": "TimetableEntry",
+      "description": "Validated timetable scheduled slots"
+    },
+    "/facultyAvailability/{availabilityId}": {
+      "schema": "FacultyAvailability",
+      "description": "Faculty day-by-day availability slots"
+    },
+    "/admins/{adminId}": {
+      "schema": "Admin",
+      "description": "Admin UIDs for RBAC lookup"
+    }
+  }
+}

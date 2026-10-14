@@ -1,0 +1,6 @@
+{
+  "name": "SYNCHRONIQ — Smart Timetable Management System",
+  "description": "Intelligent Scheduling and Timetable Management System with role-based access, automated conflict resolution, and persistent Firestore integration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

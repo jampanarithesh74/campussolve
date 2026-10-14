@@ -1,0 +1,121 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function getUserRole() {
+      return (userExists() && 'role' in getUserData()) ? getUserData().role : '';
+    }
+
+    function getUserBatchId() {
+      return (userExists() && 'batchId' in getUserData()) ? getUserData().batchId : '';
+    }
+
+    function getUserFacultyId() {
+      return (userExists() && 'facultyId' in getUserData()) ? getUserData().facultyId : '';
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == "agastya752@gmail.com" ||
+        request.auth.token.email == "admin@campussolve.demo" ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        getUserRole() == 'admin' ||
+        getUserRole() == 'ADMIN'
+      );
+    }
+
+    function isStudent() {
+      return isSignedIn() && (getUserRole() == 'student' || getUserRole() == 'STUDENT');
+    }
+
+    function isTeacher() {
+      return isSignedIn() && (
+        getUserRole() == 'teacher' ||
+        getUserRole() == 'faculty' ||
+        getUserRole() == 'TEACHER' ||
+        getUserRole() == 'FACULTY'
+      );
+    }
+
+    // System health check & verified connection test records
+    match /system/{docId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    // Admins registry
+    match /admins/{adminId} {
+      allow read: if true;
+      allow write: if isAdmin() || adminId.matches('uid_.*');
+    }
+
+    // User profiles
+    match /users/{userId} {
+      // Anyone can look up a user document by id (required for auth role checking & directory)
+      allow get: if true;
+      // Admins can list all users; individual users can query their own user doc
+      allow list: if isSignedIn() && (isAdmin() || request.auth.uid == userId);
+      // Create or update demo accounts (uid_*) or authenticated users
+      allow create, update: if isSignedIn() || userId.matches('uid_.*');
+      allow delete: if isAdmin();
+    }
+
+    // Faculty members collection
+    match /faculty/{facultyId} {
+      allow read: if true;
+      allow write: if isAdmin() || isSignedIn() || facultyId.matches('fac_.*');
+    }
+
+    // Batches collection
+    match /batches/{batchId} {
+      allow read: if true;
+      allow write: if isAdmin() || isSignedIn() || batchId.matches('batch_.*');
+    }
+
+    // Subjects collection
+    match /subjects/{subjectId} {
+      allow read: if true;
+      allow write: if isAdmin() || isSignedIn() || subjectId.matches('sub_.*');
+    }
+
+    // Rooms collection
+    match /rooms/{roomId} {
+      allow read: if true;
+      allow write: if isAdmin() || isSignedIn() || roomId.matches('room_.*');
+    }
+
+    // Faculty Availability
+    match /facultyAvailability/{availabilityId} {
+      allow read: if true;
+      allow create, update: if isSignedIn() || isAdmin() || availabilityId.matches('fac_.*') || availabilityId.matches('avail_.*');
+      allow delete: if isAdmin();
+    }
+
+    // Timetable Entries
+    match /timetableEntries/{entryId} {
+      // Allow read so schedule is visible across campus dashboards
+      allow read: if true;
+
+      // Allow administrators to write; allow create during initial demo seed or for demo entries
+      allow create, update: if isAdmin() || (isSignedIn() && (getUserRole() in ['admin', 'ADMIN'])) || entryId.matches('entry_.*');
+      allow delete: if isAdmin() || (isSignedIn() && (getUserRole() in ['admin', 'ADMIN']));
+    }
+  }
+}
